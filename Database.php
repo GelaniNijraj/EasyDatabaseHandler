@@ -25,6 +25,7 @@
  * SOFTWARE.
  *
  */
+
 class Database{
     var $server   = "";
     var $user     = "";
@@ -34,8 +35,7 @@ class Database{
     var $connect = 0;
     var $query_id = 0;
     var $query_run = 0;
-    var $primary_keys = array();
-
+    
     function Database($server, $user, $pass, $database){
         $this->server = $server;
         $this->user = $user;
@@ -59,12 +59,12 @@ class Database{
     function insertRow($table, $data, $get_return_value="0"){
         $keys = array_keys($data);
         $count = 0;
-        if($keys[0]==0){
+        if($keys[0]===0){
             $query = "INSERT INTO ".$table." VALUES(";
             foreach($data as $value){
-                $query .= $value;
+                $query .= "'".$value."'";
                 $count += 1;
-                if(!$count>=count($data))
+                if($count<count($data))
                     $query .= ", ";
                 else
                     $query .= ");";
@@ -74,13 +74,21 @@ class Database{
             foreach($keys as $key){
                 $query .= $key;
                 $count += 1;
-                if(!$count>=count($keys))
-                    $query .= ", ";
-                else
+                if($count==count($keys))
                     $query .= ") ";
+                else
+                    $query .= ", ";
             }
             $query .= "VALUES(";
-            $query .= $this->generateList($data).";";
+            $count = 0;
+            foreach($data as $key){
+                $query .= "'".$key."'";
+                $count += 1;
+                if($count==count($data))
+                    $query .= ")";
+                else
+                    $query .= ", ";
+            }
         }
         $this->query($query);
         if ($get_return_value != "0") {
@@ -93,8 +101,8 @@ class Database{
     function updateValue($table, $vals, $condition){
         $query = "UPDATE ".$table." SET ";
         $query .= $this->generateList($vals);
-        $query .= "WHERE ".$condition.";";
-        $this->query($query);
+        $query .= " WHERE ".$condition.";";
+        return $this->query($query);
     }
 
     function getArray($table, $column, $condition="1"){
@@ -106,7 +114,14 @@ class Database{
                 array_push($arr, $a);
             }
             return $arr;
+        }else{
+            return -1;
         }
+    }
+
+    function getRow($table, $column, $condition="1"){
+        $arr = $this->getArray($table, $column, $condition);
+        return $arr[0];
     }
 
     function getValue($table, $column, $condition){
@@ -127,11 +142,12 @@ class Database{
 
     function deleteRow($table, $condition){
         $query = "DELETE FROM " . $table . " WHERE " . $condition;
-        $this->query($query);
+        return $this->query($query);
     }
 
     function count($table, $condition){
-        $query = "SELECT * FROM ".$table." WHERE ".$condition;
+        $query = "SELECT * FROM ".$table." WHERE ".$condition.";";
+        $this->query($query);
         return mysqli_num_rows($this->query_run);
     }
 
@@ -151,7 +167,7 @@ class Database{
         $list_ = "";
         foreach($associative_array as $column=>$value){
             $list_ .= $column."='".$value."'";
-            if($count!=count($associative_array)){
+            if($count!=count($associative_array)-1){
                 $list_ .= ", ";
             }
             $count += 1;
@@ -165,13 +181,5 @@ class Database{
 
     function disableErrors(){
         $this->error = 0;
-    }
-
-    function setPrimaryKeys($array){
-        $this->primary_keys = $array;
-    }
-
-    function close(){
-        mysqli_close($this->connect);
     }
 }
